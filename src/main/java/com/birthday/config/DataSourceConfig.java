@@ -59,8 +59,24 @@ public class DataSourceConfig {
             }
         }
 
-        // Nếu không có DATABASE_URL, để Spring Boot tự xử lý với application.properties
-        return null; // Spring Boot sẽ dùng auto-configuration từ application.properties
+        // Nếu không có DATABASE_URL, tạo DataSource từ application.properties
+        DataSourceBuilder<?> builder = DataSourceBuilder.create();
+        builder.url(datasourceUrl);
+
+        if (username != null && !username.isEmpty()) {
+            builder.username(username);
+        }
+        if (password != null && !password.isEmpty()) {
+            builder.password(password);
+        }
+        if (dbDriver != null && !dbDriver.isEmpty()) {
+            builder.driverClassName(dbDriver);
+        } else {
+            // Mặc định dùng PostgreSQL driver
+            builder.driverClassName("org.postgresql.Driver");
+        }
+
+        return builder.build();
     }
 
     private DataSource parsePostgresUrl(String url) {
