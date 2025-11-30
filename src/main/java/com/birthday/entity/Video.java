@@ -19,7 +19,7 @@ public class Video {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Column(nullable = false, columnDefinition = "LONGTEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String url;
 
     @Column(length = 50)
