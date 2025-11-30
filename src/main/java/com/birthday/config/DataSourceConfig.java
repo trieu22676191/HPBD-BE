@@ -31,38 +31,36 @@ public class DataSourceConfig {
     @Primary
     public DataSource dataSource() {
         // Ưu tiên đọc từ DATABASE_URL (từ Render/cloud providers)
-        String url = databaseUrl != null && !databaseUrl.isEmpty() ? databaseUrl : datasourceUrl;
+        String url = databaseUrl != null && !databaseUrl.isEmpty() ? databaseUrl : null;
 
-        // Nếu không có URL nào, để Spring Boot tự xử lý với application.properties
-        if (url == null || url.isEmpty()) {
-            return null; // Spring Boot sẽ dùng auto-configuration
-        }
-
-        // Nếu DATABASE_URL có dạng postgresql://... (từ Render), cần parse
-        if (url.startsWith("postgresql://") || url.startsWith("postgres://")) {
-            return parsePostgresUrl(url);
-        }
-
-        // Nếu có URL dạng jdbc:...
-        if (url.startsWith("jdbc:")) {
-            DataSourceBuilder<?> builder = DataSourceBuilder.create();
-            builder.url(url);
-
-            if (username != null && !username.isEmpty()) {
-                builder.username(username);
-            }
-            if (password != null && !password.isEmpty()) {
-                builder.password(password);
-            }
-            if (dbDriver != null && !dbDriver.isEmpty()) {
-                builder.driverClassName(dbDriver);
+        // Nếu có DATABASE_URL từ environment, parse và dùng
+        if (url != null && !url.isEmpty()) {
+            // Nếu DATABASE_URL có dạng postgresql://... (từ Render), cần parse
+            if (url.startsWith("postgresql://") || url.startsWith("postgres://")) {
+                return parsePostgresUrl(url);
             }
 
-            return builder.build();
+            // Nếu có URL dạng jdbc:...
+            if (url.startsWith("jdbc:")) {
+                DataSourceBuilder<?> builder = DataSourceBuilder.create();
+                builder.url(url);
+
+                if (username != null && !username.isEmpty()) {
+                    builder.username(username);
+                }
+                if (password != null && !password.isEmpty()) {
+                    builder.password(password);
+                }
+                if (dbDriver != null && !dbDriver.isEmpty()) {
+                    builder.driverClassName(dbDriver);
+                }
+
+                return builder.build();
+            }
         }
 
-        // Nếu URL không hợp lệ, để Spring Boot tự xử lý
-        return null;
+        // Nếu không có DATABASE_URL, để Spring Boot tự xử lý với application.properties
+        return null; // Spring Boot sẽ dùng auto-configuration từ application.properties
     }
 
     private DataSource parsePostgresUrl(String url) {
