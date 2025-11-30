@@ -1,5 +1,7 @@
 package com.birthday.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -11,6 +13,8 @@ import java.net.URI;
 
 @Configuration
 public class DataSourceConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(DataSourceConfig.class);
 
     @Value("${DATABASE_URL:}")
     private String databaseUrl;
@@ -30,8 +34,14 @@ public class DataSourceConfig {
     @Bean
     @Primary
     public DataSource dataSource() {
-        // Ưu tiên đọc từ DATABASE_URL (từ Render/cloud providers)
-        String url = databaseUrl != null && !databaseUrl.isEmpty() ? databaseUrl : null;
+        // Đọc từ environment variable trực tiếp (ưu tiên hơn @Value)
+        String envDatabaseUrl = System.getenv("DATABASE_URL");
+        String url = (envDatabaseUrl != null && !envDatabaseUrl.isEmpty()) ? envDatabaseUrl : databaseUrl;
+
+        logger.info("DATABASE_URL from System.getenv(): {}", envDatabaseUrl != null ? "***" : "null");
+        logger.info("DATABASE_URL from @Value: {}", databaseUrl != null && !databaseUrl.isEmpty() ? "***" : "null");
+        logger.info("Using DATABASE_URL: {}",
+                url != null && !url.isEmpty() ? "***" : "null (will use application.properties)");
 
         // Nếu có DATABASE_URL từ environment, parse và dùng
         if (url != null && !url.isEmpty()) {
