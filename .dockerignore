@@ -1,0 +1,16 @@
+target/
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+*.log
+.DS_Store
+node_modules
+README.md
+DEPLOY.md
+CLOUDINARY_SETUP.md
+create-database.sql
+fix-video-url-column.sql
+render.yaml
+
