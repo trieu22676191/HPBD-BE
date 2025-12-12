@@ -16,25 +16,30 @@ import java.util.Map;
 @RequestMapping("/api/videos")
 @CrossOrigin(origins = "*")
 public class VideoController {
-    
+
     @Autowired
     private VideoService videoService;
-    
+
     @Autowired
     private CloudinaryService cloudinaryService;
-    
+
     @GetMapping
-    public ResponseEntity<List<VideoDTO>> getAllVideos() {
-        List<VideoDTO> videos = videoService.getAllVideos();
-        return ResponseEntity.ok(videos);
+    public ResponseEntity<?> getAllVideos() {
+        try {
+            List<VideoDTO> videos = videoService.getAllVideos();
+            return ResponseEntity.ok(videos);
+        } catch (Exception e) {
+            // Exception sẽ được GlobalExceptionHandler xử lý
+            throw e;
+        }
     }
-    
+
     @PostMapping
     public ResponseEntity<VideoDTO> createVideo(@Valid @RequestBody VideoDTO videoDTO) {
         VideoDTO createdVideo = videoService.createVideo(videoDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdVideo);
     }
-    
+
     @PostMapping("/upload")
     public ResponseEntity<?> uploadVideo(
             @RequestParam("file") MultipartFile file,
@@ -46,28 +51,29 @@ public class VideoController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "File không được để trống"));
             }
-            
+
             // Kiểm tra loại file
             String contentType = file.getContentType();
             if (contentType == null || !contentType.startsWith("video/")) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "File phải là video"));
             }
-            
+
             // Upload video lên Cloudinary
             String videoUrl = cloudinaryService.uploadVideo(file);
-            
+
             // Tạo VideoDTO với URL từ Cloudinary
             VideoDTO videoDTO = new VideoDTO();
             videoDTO.setUrl(videoUrl);
             videoDTO.setType("video");
-            videoDTO.setTitle(title != null && !title.trim().isEmpty() 
-                ? title.trim() 
-                : (file.getOriginalFilename() != null 
-                    ? file.getOriginalFilename().replaceAll("\\.[^.]*$", "") 
-                    : "Video mới"));
+            String originalFilename = file.getOriginalFilename();
+            videoDTO.setTitle(title != null && !title.trim().isEmpty()
+                    ? title.trim()
+                    : (originalFilename != null
+                            ? originalFilename.replaceAll("\\.[^.]*$", "")
+                            : "Video mới"));
             videoDTO.setDescription(description != null ? description.trim() : "Video đã tải lên");
-            
+
             // Lưu vào database
             VideoDTO createdVideo = videoService.createVideo(videoDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdVideo);
@@ -76,12 +82,17 @@ public class VideoController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Lỗi khi upload video: " + e.getMessage()));
+            // Wrap checked exceptions trong RuntimeException để GlobalExceptionHandler xử
+            // lý
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            } else {
+                // Wrap checked exceptions (như IOException) trong RuntimeException
+                throw new RuntimeException(e);
+            }
         }
     }
-    
+
     @PutMapping("/{id}")
     public ResponseEntity<VideoDTO> updateVideo(
             @PathVariable Long id,
@@ -89,17 +100,16 @@ public class VideoController {
         VideoDTO updatedVideo = videoService.updateVideo(id, videoDTO);
         return ResponseEntity.ok(updatedVideo);
     }
-    
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVideo(@PathVariable Long id) {
         videoService.deleteVideo(id);
         return ResponseEntity.noContent().build();
     }
-    
+
     @PutMapping("/{id}/toggle-lock")
     public ResponseEntity<VideoDTO> toggleLock(@PathVariable Long id) {
         VideoDTO updatedVideo = videoService.toggleLock(id);
         return ResponseEntity.ok(updatedVideo);
     }
 }
-

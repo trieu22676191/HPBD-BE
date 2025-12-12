@@ -13,22 +13,27 @@ import java.util.List;
 @RequestMapping("/api/wishes")
 @CrossOrigin(origins = "*")
 public class WishController {
-    
+
     @Autowired
     private WishService wishService;
-    
+
     @GetMapping
-    public ResponseEntity<List<WishDTO>> getAllWishes() {
-        List<WishDTO> wishes = wishService.getAllWishes();
-        return ResponseEntity.ok(wishes);
+    public ResponseEntity<?> getAllWishes() {
+        try {
+            List<WishDTO> wishes = wishService.getAllWishes();
+            return ResponseEntity.ok(wishes);
+        } catch (Exception e) {
+            // Exception sẽ được GlobalExceptionHandler xử lý
+            throw e;
+        }
     }
-    
+
     @PostMapping
     public ResponseEntity<WishDTO> createWish(@Valid @RequestBody WishDTO wishDTO) {
         WishDTO createdWish = wishService.createWish(wishDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdWish);
     }
-    
+
     @PutMapping("/{id}")
     public ResponseEntity<WishDTO> updateWish(
             @PathVariable Long id,
@@ -36,17 +41,16 @@ public class WishController {
         WishDTO updatedWish = wishService.updateWish(id, wishDTO);
         return ResponseEntity.ok(updatedWish);
     }
-    
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteWish(@PathVariable Long id) {
         wishService.deleteWish(id);
         return ResponseEntity.noContent().build();
     }
-    
+
     @PutMapping("/{id}/mark-viewed")
     public ResponseEntity<WishDTO> markAsViewed(@PathVariable Long id) {
         WishDTO updatedWish = wishService.markAsViewed(id);
         return ResponseEntity.ok(updatedWish);
     }
 }
-

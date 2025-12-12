@@ -16,25 +16,30 @@ import java.util.Map;
 @RequestMapping("/api/photos")
 @CrossOrigin(origins = "*")
 public class PhotoController {
-    
+
     @Autowired
     private PhotoService photoService;
-    
+
     @Autowired
     private CloudinaryService cloudinaryService;
-    
+
     @GetMapping
-    public ResponseEntity<List<PhotoDTO>> getAllPhotos() {
-        List<PhotoDTO> photos = photoService.getAllPhotos();
-        return ResponseEntity.ok(photos);
+    public ResponseEntity<?> getAllPhotos() {
+        try {
+            List<PhotoDTO> photos = photoService.getAllPhotos();
+            return ResponseEntity.ok(photos);
+        } catch (Exception e) {
+            // Exception sẽ được GlobalExceptionHandler xử lý
+            throw e;
+        }
     }
-    
+
     @PostMapping
     public ResponseEntity<PhotoDTO> createPhoto(@Valid @RequestBody PhotoDTO photoDTO) {
         PhotoDTO createdPhoto = photoService.createPhoto(photoDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPhoto);
     }
-    
+
     @PostMapping("/upload")
     public ResponseEntity<?> uploadPhoto(
             @RequestParam("file") MultipartFile file,
@@ -45,26 +50,27 @@ public class PhotoController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "File không được để trống"));
             }
-            
+
             // Kiểm tra loại file
             String contentType = file.getContentType();
             if (contentType == null || !contentType.startsWith("image/")) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "File phải là ảnh"));
             }
-            
+
             // Upload ảnh lên Cloudinary
             String imageUrl = cloudinaryService.uploadImage(file);
-            
+
             // Tạo PhotoDTO với URL từ Cloudinary
             PhotoDTO photoDTO = new PhotoDTO();
             photoDTO.setUrl(imageUrl);
-            photoDTO.setCaption(caption != null && !caption.trim().isEmpty() 
-                ? caption.trim() 
-                : (file.getOriginalFilename() != null 
-                    ? file.getOriginalFilename().replaceAll("\\.[^.]*$", "") 
-                    : "Ảnh mới"));
-            
+            String originalFilename = file.getOriginalFilename();
+            photoDTO.setCaption(caption != null && !caption.trim().isEmpty()
+                    ? caption.trim()
+                    : (originalFilename != null
+                            ? originalFilename.replaceAll("\\.[^.]*$", "")
+                            : "Ảnh mới"));
+
             // Lưu vào database
             PhotoDTO createdPhoto = photoService.createPhoto(photoDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdPhoto);
@@ -73,12 +79,17 @@ public class PhotoController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Lỗi khi upload ảnh: " + e.getMessage()));
+            // Wrap checked exceptions trong RuntimeException để GlobalExceptionHandler xử
+            // lý
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            } else {
+                // Wrap checked exceptions (như IOException) trong RuntimeException
+                throw new RuntimeException(e);
+            }
         }
     }
-    
+
     @PutMapping("/{id}")
     public ResponseEntity<PhotoDTO> updatePhoto(
             @PathVariable Long id,
@@ -86,17 +97,16 @@ public class PhotoController {
         PhotoDTO updatedPhoto = photoService.updatePhoto(id, photoDTO);
         return ResponseEntity.ok(updatedPhoto);
     }
-    
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePhoto(@PathVariable Long id) {
         photoService.deletePhoto(id);
         return ResponseEntity.noContent().build();
     }
-    
+
     @PutMapping("/{id}/toggle-lock")
     public ResponseEntity<PhotoDTO> toggleLock(@PathVariable Long id) {
         PhotoDTO updatedPhoto = photoService.toggleLock(id);
         return ResponseEntity.ok(updatedPhoto);
     }
 }
-
