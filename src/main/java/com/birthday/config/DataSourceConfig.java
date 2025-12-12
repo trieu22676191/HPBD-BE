@@ -90,13 +90,16 @@ public class DataSourceConfig {
         config.setDriverClassName(finalDriver);
 
         // Connection pool settings
-        config.setConnectionTimeout(30000);
+        // Tăng connection timeout lên 60 giây để xử lý network latency
+        config.setConnectionTimeout(60000);
         config.setMaximumPoolSize(10);
         config.setMinimumIdle(2);
         config.setIdleTimeout(300000);
         config.setMaxLifetime(600000);
         config.setConnectionTestQuery("SELECT 1");
         config.setLeakDetectionThreshold(60000);
+        // Thêm validation timeout
+        config.setValidationTimeout(5000);
 
         // Tắt fail-fast để app có thể start mà không cần DB ngay
         // -1 = không fail khi start, sẽ retry khi cần
