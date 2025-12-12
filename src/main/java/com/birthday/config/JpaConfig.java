@@ -35,12 +35,33 @@ public class JpaConfig {
     }
 
     private boolean checkDatabaseAvailability(DataSource dataSource) {
-        try (Connection connection = dataSource.getConnection()) {
-            return connection.isValid(2); // Timeout 2 giây
-        } catch (SQLException e) {
-            logger.debug("Database not available: {}", e.getMessage());
-            return false;
+        // Retry logic với timeout dài hơn
+        int maxRetries = 3;
+        int retryDelay = 2000; // 2 giây
+        
+        for (int i = 0; i < maxRetries; i++) {
+            try (Connection connection = dataSource.getConnection()) {
+                // Tăng timeout lên 10 giây
+                boolean isValid = connection.isValid(10);
+                if (isValid) {
+                    logger.info("Database connection successful on attempt {}", i + 1);
+                    return true;
+                }
+            } catch (SQLException e) {
+                logger.debug("Database connection attempt {} failed: {}", i + 1, e.getMessage());
+                if (i < maxRetries - 1) {
+                    try {
+                        Thread.sleep(retryDelay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                }
+            }
         }
+        
+        logger.warn("Database not available after {} attempts", maxRetries);
+        return false;
     }
 }
 
