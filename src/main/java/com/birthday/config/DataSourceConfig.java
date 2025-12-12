@@ -88,7 +88,7 @@ public class DataSourceConfig {
             config.setPassword(finalPassword);
         }
         config.setDriverClassName(finalDriver);
-        
+
         // Connection pool settings
         config.setConnectionTimeout(30000);
         config.setMaximumPoolSize(10);
@@ -97,14 +97,14 @@ public class DataSourceConfig {
         config.setMaxLifetime(600000);
         config.setConnectionTestQuery("SELECT 1");
         config.setLeakDetectionThreshold(60000);
-        
+
         // Tắt fail-fast để app có thể start mà không cần DB ngay
         // -1 = không fail khi start, sẽ retry khi cần
         config.setInitializationFailTimeout(-1);
-        
+
         logger.info("Creating DataSource with URL: {}", finalUrl.replaceAll(":[^:@]+@", ":****@"));
         logger.info("InitializationFailTimeout set to -1 (will not fail on startup)");
-        
+
         return new HikariDataSource(config);
     }
 
@@ -117,13 +117,25 @@ public class DataSourceConfig {
     private ParsedDbInfo parsePostgresUrl(String url) {
         try {
             logger.info("Parsing DATABASE_URL (masked): {}", url.replaceAll(":[^:@]+@", ":****@"));
-            
+
             // Parse URL dạng: postgresql://user:pass@host:port/dbname
             URI dbUri = new URI(url);
-            
+
             String host = dbUri.getHost();
+
+            // Nếu hostname thiếu domain suffix (chỉ có dpg-xxxxx-a), thêm domain suffix
+            // Render thường cung cấp hostname dạng:
+            // dpg-xxxxx-a.singapore-postgres.render.com
+            // Nhưng đôi khi chỉ có: dpg-xxxxx-a (thiếu domain)
+            if (host != null && !host.contains(".") && host.startsWith("dpg-")) {
+                // Thêm domain suffix dựa trên region (mặc định là singapore)
+                // Format: dpg-xxxxx-a.singapore-postgres.render.com
+                host = host + ".singapore-postgres.render.com";
+                logger.info("Added domain suffix to hostname: {}", host);
+            }
+
             int port = dbUri.getPort() == -1 ? 5432 : dbUri.getPort();
-            
+
             logger.info("Parsed host: {}, port: {}", host, port);
 
             String dbUrl = String.format("jdbc:postgresql://%s:%d%s",
