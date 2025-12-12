@@ -98,7 +98,12 @@ public class DataSourceConfig {
         config.setConnectionTestQuery("SELECT 1");
         config.setLeakDetectionThreshold(60000);
         
+        // Tắt fail-fast để app có thể start mà không cần DB ngay
+        // -1 = không fail khi start, sẽ retry khi cần
+        config.setInitializationFailTimeout(-1);
+        
         logger.info("Creating DataSource with URL: {}", finalUrl.replaceAll(":[^:@]+@", ":****@"));
+        logger.info("InitializationFailTimeout set to -1 (will not fail on startup)");
         
         return new HikariDataSource(config);
     }
@@ -111,17 +116,26 @@ public class DataSourceConfig {
 
     private ParsedDbInfo parsePostgresUrl(String url) {
         try {
+            logger.info("Parsing DATABASE_URL (masked): {}", url.replaceAll(":[^:@]+@", ":****@"));
+            
             // Parse URL dạng: postgresql://user:pass@host:port/dbname
             URI dbUri = new URI(url);
+            
+            String host = dbUri.getHost();
+            int port = dbUri.getPort() == -1 ? 5432 : dbUri.getPort();
+            
+            logger.info("Parsed host: {}, port: {}", host, port);
 
             String dbUrl = String.format("jdbc:postgresql://%s:%d%s",
-                    dbUri.getHost(),
-                    dbUri.getPort() == -1 ? 5432 : dbUri.getPort(),
+                    host,
+                    port,
                     dbUri.getPath());
 
             String[] userInfo = dbUri.getUserInfo() != null ? dbUri.getUserInfo().split(":") : new String[0];
             String dbUser = userInfo.length > 0 ? userInfo[0] : "postgres";
             String dbPassword = userInfo.length > 1 ? userInfo[1] : "";
+
+            logger.info("Final JDBC URL (masked): {}", dbUrl.replaceAll(":[^:@]+@", ":****@"));
 
             ParsedDbInfo info = new ParsedDbInfo();
             info.url = dbUrl;
@@ -129,6 +143,7 @@ public class DataSourceConfig {
             info.password = dbPassword;
             return info;
         } catch (Exception e) {
+            logger.error("Error parsing DATABASE_URL (masked): {}", url.replaceAll(":[^:@]+@", ":****@"), e);
             throw new RuntimeException("Error parsing DATABASE_URL: " + url, e);
         }
     }
