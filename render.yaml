@@ -1,32 +1,24 @@
 services:
   - type: web
     name: hpbd-backend
-    env: java
+    runtime: docker
     plan: free
-    region: singapore
+    region: singapore  # Phải cùng region với database
     buildCommand: mvn clean package -DskipTests
     startCommand: java -jar target/hpbd-backend-1.0.0.jar
     envVars:
+      # Server Configuration
       - key: PORT
-        value: 8080
+        value: "8080"
       - key: SPRING_PROFILES_ACTIVE
         value: production
-      - key: SHOW_SQL
-        value: false
-      - key: FORMAT_SQL
-        value: false
-      - key: ALLOWED_ORIGINS
-        value: "*"
-      - key: CLOUDINARY_CLOUD_NAME
-        value: dclomtdc3
-      - key: CLOUDINARY_API_KEY
-        value: 697821664471255
-      - key: CLOUDINARY_API_SECRET
-        value: M8y-hV7I_KlARcgK3VuaITkl8-4
+      
+      # Database Configuration - Tự động lấy từ database 'birthday-db'
+      # Render sẽ tự động inject các biến này khi database được tạo
       - key: DATABASE_URL
         fromDatabase:
-          name: birthday-db
-          property: connectionString
+          name: birthday-db  # Tên database service (phải khớp với databases.name bên dưới)
+          property: connectionString  # Internal Database URL (Render tự động thêm domain suffix nếu cần)
       - key: DATABASE_USER
         fromDatabase:
           name: birthday-db
@@ -35,18 +27,43 @@ services:
         fromDatabase:
           name: birthday-db
           property: password
+      
+      # JPA/Hibernate Configuration
       - key: DB_DRIVER
         value: org.postgresql.Driver
       - key: DB_DIALECT
         value: org.hibernate.dialect.PostgreSQLDialect
       # Bật auto-create schema khi database sẵn sàng
+      # Hibernate sẽ tự động tạo tables (wishes, photos, videos) khi app start
       - key: SPRING_JPA_HIBERNATE_DDL_AUTO
         value: update
+      
+      # Logging Configuration
+      - key: SHOW_SQL
+        value: "false"
+      - key: FORMAT_SQL
+        value: "false"
+      
+      # CORS Configuration
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      
+      # Cloudinary Configuration (for image/video upload)
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dclomtdc3
+      - key: CLOUDINARY_API_KEY
+        value: "697821664471255"
+      - key: CLOUDINARY_API_SECRET
+        value: M8y-hV7I_KlARcgK3VuaITkl8-4
 
+# Database Configuration
+# Render sẽ tự động tạo database này khi deploy
+# Lưu ý: databaseName có thể có suffix (ví dụ: birthday_db_axjz)
+# nhưng DATABASE_URL sẽ tự động chứa đúng tên database
 databases:
-  - name: birthday-db
+  - name: birthday-db  # Tên database service (phải khớp với fromDatabase.name ở trên)
     plan: free
-    databaseName: birthday_db
-    user: birthday_user
-    region: singapore
+    databaseName: birthday_db  # Tên database bên trong PostgreSQL (Render có thể thêm suffix)
+    user: birthday_user  # Username để kết nối database
+    region: singapore  # Phải cùng region với web service
 

@@ -3,6 +3,8 @@ package com.birthday.exception;
 import jakarta.persistence.PersistenceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.sql.SQLTransientConnectionException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,6 +40,42 @@ public class GlobalExceptionHandler {
         Map<String, Object> error = new HashMap<>();
         error.put("error", "Database error");
         error.put("message", "Lỗi khi truy cập database. Có thể database chưa sẵn sàng.");
+        error.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleDataAccessException(DataAccessException e) {
+        logger.error("Data Access Exception: ", e);
+        
+        Map<String, Object> error = new HashMap<>();
+        error.put("error", "Database access error");
+        
+        // Kiểm tra nếu là connection error
+        if (e instanceof DataAccessResourceFailureException || 
+            e.getCause() instanceof SQLTransientConnectionException ||
+            (e.getMessage() != null && e.getMessage().contains("Connection"))) {
+            error.put("message", "Không thể kết nối đến database. Database có thể chưa sẵn sàng hoặc bị suspend.");
+            error.put("hint", "Vui lòng kiểm tra database status trên Render Dashboard và đảm bảo database đang 'Available'");
+        } else {
+            error.put("message", "Lỗi khi truy cập database: " + (e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+        
+        error.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        error.put("exceptionType", e.getClass().getSimpleName());
+        
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+    }
+
+    @ExceptionHandler(SQLTransientConnectionException.class)
+    public ResponseEntity<Map<String, Object>> handleSQLTransientConnectionException(SQLTransientConnectionException e) {
+        logger.error("SQL Transient Connection Exception: ", e);
+        
+        Map<String, Object> error = new HashMap<>();
+        error.put("error", "Database connection timeout");
+        error.put("message", "Kết nối database timeout. Database có thể chưa sẵn sàng hoặc bị suspend.");
+        error.put("hint", "Vui lòng kiểm tra database status trên Render Dashboard. Free tier database có thể bị suspend sau khi không dùng.");
         error.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
         
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
