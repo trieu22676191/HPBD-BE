@@ -39,6 +39,9 @@ services:
         value: org.postgresql.Driver
       - key: DB_DIALECT
         value: org.hibernate.dialect.PostgreSQLDialect
+      # Bật auto-create schema khi database sẵn sàng
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
 
 databases:
   - name: birthday-db
